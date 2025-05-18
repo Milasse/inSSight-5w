@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String?
+  role         String  // "admin", "dept_head", "student"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  events       Event[]
+}
+
+model Student {
+  id         String       @id @default(cuid())
+  studentId  String       @unique // S-number
+  name       String
+  email      String?
+  major      String?
+  year       String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  attendances Attendance[]
+}
+
+model FieldOption {
+  id        String   @id @default(cuid())
+  fieldName String   // "event_type", "location", "time", "heard_via", etc.
+  value     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  eventTypes      Event[]      @relation("EventType")
+  eventLocations  Event[]      @relation("EventLocation")
+  eventTimes      Event[]      @relation("EventTime")
+  feedbackHeardVia Feedback[]  @relation("HeardVia")
+}
+
+model Event {
+  id               String      @id @default(cuid())
+  title            String
+  typeOptionId     String?
+  customType       String?
+  locationOptionId String?
+  customLocation   String?
+  timeOptionId     String?
+  customTime       String?
+  dateTime         DateTime
+  isActive         Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  
+  // Relations
+  typeOption       FieldOption? @relation("EventType", fields: [typeOptionId], references: [id])
+  locationOption   FieldOption? @relation("EventLocation", fields: [locationOptionId], references: [id])
+  timeOption       FieldOption? @relation("EventTime", fields: [timeOptionId], references: [id])
+  createdBy        User        @relation(fields: [createdById], references: [id])
+  createdById      String
+  attendances      Attendance[]
+}
+
+model Attendance {
+  id          String    @id @default(cuid())
+  studentId   String
+  eventId     String
+  signedInAt  DateTime  @default(now())
+  role        String?   // "attendee", "presenter", "volunteer", etc.
+  customRole  String?
+  
+  // Relations
+  student     Student   @relation(fields: [studentId], references: [id])
+  event       Event     @relation(fields: [eventId], references: [id])
+  feedback    Feedback?
+}
+
+model Feedback {
+  id               String    @id @default(cuid())
+  attendanceId     String    @unique
+  rating           Int?      // 1-5 scale
+  recommendScore   Int?      // 0-10 NPS scale
+  heardViaOptionId String?
+  customHeardVia   String?
+  openEnded        Json?     // Flexible structure for various questions
+  submittedAt      DateTime  @default(now())
+  
+  // Relations
+  attendance       Attendance @relation(fields: [attendanceId], references: [id])
+  heardViaOption   FieldOption? @relation("HeardVia", fields: [heardViaOptionId], references: [id])
+}
